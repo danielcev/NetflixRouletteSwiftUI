@@ -18,10 +18,12 @@ struct ContentView: View {
                     Text("Cargando...")
                 } else {
                     Text(viewModel.content?.title ?? "")
+                        .bold()
                     Image(uiImage: viewModel.image)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 200.0, height: 300.0, alignment: .center)
+                        .padding(.top, 30)
 
                     Button(action: {
                         self.viewModel.isLoading.toggle()
