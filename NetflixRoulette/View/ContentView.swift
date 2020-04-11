@@ -27,7 +27,7 @@ struct ContentView: View {
 
                     Button(action: {
                         self.viewModel.isLoading.toggle()
-                        self.viewModel.search()
+                        self.viewModel.getRandom()
                     }) {
                         Text("Random")
                         .padding(EdgeInsets(top: 10, leading: 40, bottom: 10, trailing: 40))

@@ -10,11 +10,7 @@ import SwiftUI
 import Combine
 
 final class ContentViewModel: ObservableObject {
-    @Published var content: ContentResponse? {
-        didSet {
-            isLoading = false
-        }
-    }
+    @Published var content: ContentResponse?
     @Published var image: UIImage = UIImage.init() {
         didSet {
             isLoading = false
@@ -22,48 +18,43 @@ final class ContentViewModel: ObservableObject {
     }
     @Published var isLoading = true
 
-    private var contentCancellable: Cancellable? {
-        didSet { oldValue?.cancel() }
-    }
+    private var publishers = [AnyCancellable]()
 
-    private var imageCancellable: Cancellable? {
-        didSet { oldValue?.cancel() }
-    }
+    private let apiProvider: ContentProvider
 
     deinit {
-        contentCancellable?.cancel()
-        imageCancellable?.cancel()
+        publishers.forEach { $0.cancel() }
     }
 
     init() {
-        search()
+        apiProvider = ContentApi()
+        getRandom()
     }
 
-    func search() {
-        let urlComponents = URLComponents(string: "https://api.reelgood.com/roulette?content_kind=movie&free=false&nocache=true&sources=netflix")!
-        let request = URLRequest(url: urlComponents.url!)
-
-        contentCancellable = URLSession.shared.dataTaskPublisher(for: request)
-            .map { $0.data }
-            .decode(type: ContentResponse.self, decoder: JSONDecoder())
-            .map { $0 }
-            .replaceError(with: nil)
+    func getRandom() {
+        apiProvider
+            .getRandomContent()
             .receive(on: RunLoop.main)
-            .sink(receiveValue: { [weak self] content in
-                self?.fetchImage(for: content!)
-            })
+            .sink(receiveCompletion: { error in
+                print(error)
+            }) { response in
+                self.content = response
+                self.fetchImage(for: response)
+            }
+            .store(in: &publishers)
+
     }
 
     func fetchImage(for content: ContentResponse) {
-        let url = URL(string: "https://img.reelgood.com/content/movie/\(content.id)/poster-342.jpg")!
-        let request = URLRequest(url: url)
-        imageCancellable = URLSession.shared.dataTaskPublisher(for: request)
-            .map { UIImage(data: $0.data) }
-            .replaceError(with: nil)
+        apiProvider
+            .getImage(id: content.id)
+            .map { UIImage(data: $0) }
             .receive(on: RunLoop.main)
-            .sink(receiveValue: { [weak self] image in
-                self?.content = content
-                self?.image = image ?? UIImage(named: "noImage")!
-            })
+            .sink(receiveCompletion: { error in
+                print(error)
+            }) { image in
+                self.image = image ?? UIImage(named: "noImage")!
+            }
+            .store(in: &publishers)
     }
 }
